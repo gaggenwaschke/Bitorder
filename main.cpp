@@ -107,10 +107,11 @@ struct Bitfield<T, position, size, BitOrder::LSBAtZero, littleEndian> {
         T temp{};
         auto ref = reinterpret_cast<uint8_t*>(&temp);
         auto startBit = position + (8*byteOffset);
-        auto endBit = startBit + size;
-        for (auto srcBit = startBit; srcBit < endBit; ++srcBit) {
-            auto desBit = srcBit - position;
-            copyBit(ref[desBit/8], desBit%8, data[srcBit/8], srcBit%8);
+        for (auto desBit = 0; desBit < size; ++desBit) {
+            auto srcBit = desBit + startBit;
+            auto srcByte = srcBit / 8;
+            srcBit %= 8;
+            copyBit(ref[desBit/8], desBit%8, data[srcByte], srcBit);
         }
 
         return temp;
@@ -176,9 +177,8 @@ public:
         for (auto desBit = 0; desBit < size; ++desBit) {
             auto srcBit = endBit - desBit - 1;
             auto srcByte = srcBit / 8;
-            srcBit = 7 - (srcBit % 8);
-            std::cout << "copying " << srcBit << " to " << desBit << std::endl;
-            copyBit(ref[desBit/8], (desBit%8), data[srcBit/8], srcBit%8);
+            srcBit %= 8;
+            copyBit(ref[desBit/8], (desBit%8), data[srcByte], srcBit);
         }
 
         return temp;
@@ -198,9 +198,9 @@ int main(int argc, char* argv[]) {
     using bit6 = Bitfield<int, 6, 1>;
     using bit7 = Bitfield<int, 7, 1>;
 
-    using UINT16 = Bitfield<uint16_t, 7, 9, BitOrder::MSBAtZero>;
+    using UINT16 = Bitfield<uint16_t, 7, 9, BitOrder::LSBAtZero>;
 
-    std::array<uint8_t, 2> a1({0b00000001, 0b10000000});
+    std::array<uint8_t, 3> a1({0b00000010, 0b00000001, 0b10000000});
 
     std::cout << "uint16 = " << UINT16::get(a1) << std::endl;
 

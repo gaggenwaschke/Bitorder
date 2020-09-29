@@ -100,7 +100,7 @@ struct Bitfield<T, position, size, BitOrder::LSBAtZero, littleEndian> {
     }
 
     template <size_t arraySize, size_t byteOffset=0>
-    static T get(const std::array<uint8_t, arraySize>& data) {
+    static T get(const uint8_t* data) {
         static_assert(position + size + (8*byteOffset) <= 8*arraySize, "Bitfield getter out of boundries");
         static_assert(sizeof(T)*8 >= size, "Bitfield size too big for chosen data type");
 
@@ -115,6 +115,11 @@ struct Bitfield<T, position, size, BitOrder::LSBAtZero, littleEndian> {
         }
 
         return temp;
+    }
+
+    template <size_t arraySize, size_t byteOffset=0>
+    static T get(const std::array<uint8_t, arraySize>& data) {
+        return get<arraySize, byteOffset>(data.data());
     }
 };
 
@@ -166,7 +171,7 @@ public:
     }
 
     template <size_t arraySize, size_t byteOffset=0>
-    static T get(const std::array<uint8_t, arraySize>& data) {
+    static T get(const uint8_t* data) {
         static_assert(position + size + (8*byteOffset) <= 8*arraySize, "Bitfield getter out of boundries");
         static_assert(sizeof(T)*8 >= size, "Bitfield size too big for chosen data type");
 
@@ -182,6 +187,11 @@ public:
         }
 
         return temp;
+    }
+
+    template <size_t arraySize, size_t byteOffset=0>
+    static T get(const std::array<uint8_t, arraySize>& data) {
+        return get<arraySize, byteOffset>(data.data());
     }
 };
 
@@ -200,9 +210,11 @@ int main(int argc, char* argv[]) {
 
     using UINT16 = Bitfield<uint16_t, 7, 9, BitOrder::LSBAtZero>;
 
-    std::array<uint8_t, 3> a1({0b00000010, 0b00000001, 0b10000000});
+    std::array<uint8_t, 3> a1({0b00000010, 0b00100001, 0b10000000});
+    uint8_t a2[] = {0b00000010, 0b00100001};
 
     std::cout << "uint16 = " << UINT16::get(a1) << std::endl;
+    std::cout << "uint16 = " << UINT16::get<sizeof(a2)>(a2) << std::endl;
 
     using Data = Bitfield<int, 0, 4, BitOrder::MSBAtZero>;
 

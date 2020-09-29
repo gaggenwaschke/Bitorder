@@ -69,14 +69,27 @@ struct Bitfield {};
  */
 template <class T, size_t position, size_t size, bool littleEndian>
 struct Bitfield<T, position, size, BitOrder::LSBAtZero, littleEndian> {
+    /**
+     * @brief Get the value of the Bitfield out of one byte
+     * 
+     * @param data data byte containing the Bitfield
+     * @return T value of the Bitfield in given data
+     */
     static T get(uint8_t data) {
         static_assert(position + size <= 8, "out of boundries");
+
         T temp{};
         auto ref = reinterpret_cast<uint8_t*>(&temp);
         ref[0] = (data >> position) & (0xFF >> (8-size));
         return temp;
     }
 
+    /**
+     * @brief Set the Bits described by Bitfield in given data byte.
+     * 
+     * @param data Data to write the Bitfield value to.
+     * @param value Value to generate Bits from.
+     */
     static void set(uint8_t& data, const T& value) {
         static_assert(position + size <= 8, "out of boundries");
         auto ref = reinterpret_cast<const uint8_t*>(&value);
@@ -84,6 +97,23 @@ struct Bitfield<T, position, size, BitOrder::LSBAtZero, littleEndian> {
         data &= ~((0xFF >> (8-size)) << position);
         // copy new value in
         data |= ((ref[0]) & (0xFF >> (8-size))) << position;
+    }
+
+    template <size_t arraySize, size_t byteOffset=0>
+    static T get(const std::array<uint8_t, arraySize>& data) {
+        static_assert(position + size + (8*byteOffset) <= 8*arraySize, "Bitfield getter out of boundries");
+        static_assert(sizeof(T)*8 >= size, "Bitfield size too big for chosen data type");
+
+        T temp{};
+        auto ref = reinterpret_cast<uint8_t*>(&temp);
+        auto startBit = position + (8*byteOffset);
+        auto endBit = startBit + size;
+        for (auto srcBit = startBit; srcBit < endBit; ++srcBit) {
+            auto desBit = srcBit - position;
+            copyBit(ref[desBit/8], desBit%8, data[srcBit/8], srcBit%8);
+        }
+
+        return temp;
     }
 };
 
@@ -100,6 +130,12 @@ struct Bitfield<T, position, size, BitOrder::LSBAtZero, littleEndian> {
 template <class T, size_t position, size_t size, bool littleEndian>
 struct Bitfield<T, position, size, BitOrder::MSBAtZero, littleEndian> {
 public:
+    /**
+     * @brief Get the value of the Bitfield out of one byte
+     * 
+     * @param data data byte containing the Bitfield
+     * @return T value of the Bitfield in given data
+     */
     static T get(uint8_t data) {
         static_assert(position + size <= 8, "out of boundries");
         T temp{};
@@ -112,6 +148,12 @@ public:
         return temp;
     }
 
+    /**
+     * @brief Set the Bits described by Bitfield in given data byte.
+     *  BitOrder::LSBAtZero
+     * @param data Data to write the Bitfield value to.
+     * @param value Value to generate Bits from.
+     */
     static void set(uint8_t& data, const T& value) {
         static_assert(position + size <= 8, "out of boundries");
         auto ref = reinterpret_cast<const uint8_t*>(&value);
@@ -120,6 +162,26 @@ public:
             auto posDes = position+size-1 - posSrc;
             copyBit(data, posDes, ref[0], posSrc);
         }
+    }
+
+    template <size_t arraySize, size_t byteOffset=0>
+    static T get(const std::array<uint8_t, arraySize>& data) {
+        static_assert(position + size + (8*byteOffset) <= 8*arraySize, "Bitfield getter out of boundries");
+        static_assert(sizeof(T)*8 >= size, "Bitfield size too big for chosen data type");
+
+        T temp{};
+        auto ref = reinterpret_cast<uint8_t*>(&temp);
+        auto startBit = position + (8*byteOffset);
+        auto endBit = startBit + size;
+        for (auto desBit = 0; desBit < size; ++desBit) {
+            auto srcBit = endBit - desBit - 1;
+            auto srcByte = srcBit / 8;
+            srcBit = 7 - (srcBit % 8);
+            std::cout << "copying " << srcBit << " to " << desBit << std::endl;
+            copyBit(ref[desBit/8], (desBit%8), data[srcBit/8], srcBit%8);
+        }
+
+        return temp;
     }
 };
 
@@ -135,6 +197,12 @@ int main(int argc, char* argv[]) {
     using bit5 = Bitfield<int, 5, 1>;
     using bit6 = Bitfield<int, 6, 1>;
     using bit7 = Bitfield<int, 7, 1>;
+
+    using UINT16 = Bitfield<uint16_t, 7, 9, BitOrder::MSBAtZero>;
+
+    std::array<uint8_t, 2> a1({0b00000001, 0b10000000});
+
+    std::cout << "uint16 = " << UINT16::get(a1) << std::endl;
 
     using Data = Bitfield<int, 0, 4, BitOrder::MSBAtZero>;
 

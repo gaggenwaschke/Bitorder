@@ -99,6 +99,14 @@ struct Bitfield<T, position, size, BitOrder::LSBAtZero, littleEndian> {
         data |= ((ref[0]) & (0xFF >> (8-size))) << position;
     }
 
+    /**
+     * @brief Get the value of a bitfield out of a byte array
+     * 
+     * @tparam arraySize size of the data array
+     * @tparam byteOffset=0 offset in bytes to read the Bitfield from. (So it can also be read out of a stream or bigger array).
+     * @param data data array received from peripheral. Must be at least arraySize long.
+     * @return T Value of the Bitfield in data.
+     */
     template <size_t arraySize, size_t byteOffset=0>
     static T get(const uint8_t* data) {
         static_assert(position + size + (8*byteOffset) <= 8*arraySize, "Bitfield getter out of boundries");
@@ -117,9 +125,51 @@ struct Bitfield<T, position, size, BitOrder::LSBAtZero, littleEndian> {
         return temp;
     }
 
+    /**
+     * @brief Get the value of a bitfield out of a byte array
+     * 
+     * @tparam arraySize size of the data array
+     * @tparam byteOffset=0 offset in bytes to read the Bitfield from. (So it can also be read out of a stream or bigger array).
+     * @param data data array received from peripheral. Must be at least arraySize long.
+     * @return T Value of the Bitfield in data.
+     */
     template <size_t arraySize, size_t byteOffset=0>
     static T get(const std::array<uint8_t, arraySize>& data) {
         return get<arraySize, byteOffset>(data.data());
+    }
+
+    /**
+     * @brief Set the bitfield value within the data array.
+     * 
+     * @tparam arraySize Size of the data array.
+     * @tparam byteOffset=0 Offset in data to write to. In Bytes.
+     * @param data Data array to write to. Must be at least arraySize long.
+     * @param value Value to write to the bitfield value.
+     */
+    template <size_t arraySize, size_t byteOffset=0>
+    static void set(uint8_t* data, const T& value) {
+        static_assert(position + size + (8*byteOffset) <= 8*arraySize, "Bitfield getter out of boundries");
+        static_assert(sizeof(T)*8 >= size, "Bitfield size too big for chosen data type");
+
+        auto ref = reinterpret_cast<const uint8_t*>(&value);
+        auto startBit = position + (8*byteOffset);
+        for (auto srcBit = 0; srcBit < size; ++srcBit) {
+            auto desBit = srcBit + position;
+            copyBit(data[desBit/8], desBit%8, ref[srcBit/8], srcBit%8);
+        }
+    }
+
+    /**
+     * @brief Set the bitfield value within the data array.
+     * 
+     * @tparam arraySize Size of the data array.
+     * @tparam byteOffset=0 Offset in data to write to. In Bytes.
+     * @param data Data array to write to. Must be at least arraySize long.
+     * @param value Value to write to the bitfield value.
+     */
+    template <size_t arraySize, size_t byteOffset=0>
+    static void set(std::array<uint8_t, arraySize>& data, const T& value) {
+        set<arraySize, byteOffset>(data.data(), value);
     }
 };
 
@@ -170,6 +220,14 @@ public:
         }
     }
 
+    /**
+     * @brief Get the value of a bitfield out of a byte array
+     * 
+     * @tparam arraySize size of the data array
+     * @tparam byteOffset=0 offset in bytes to read the Bitfield from. (So it can also be read out of a stream or bigger array).
+     * @param data data array received from peripheral. Must be at least arraySize long.
+     * @return T Value of the Bitfield in data.
+     */
     template <size_t arraySize, size_t byteOffset=0>
     static T get(const uint8_t* data) {
         static_assert(position + size + (8*byteOffset) <= 8*arraySize, "Bitfield getter out of boundries");
@@ -189,9 +247,54 @@ public:
         return temp;
     }
 
+    /**
+     * @brief Get the value of a bitfield out of a byte array
+     * 
+     * @tparam arraySize size of the data array
+     * @tparam byteOffset=0 offset in bytes to read the Bitfield from. (So it can also be read out of a stream or bigger array).
+     * @param data data array received from peripheral. Must be at least arraySize long.
+     * @return T Value of the Bitfield in data.
+     */
     template <size_t arraySize, size_t byteOffset=0>
     static T get(const std::array<uint8_t, arraySize>& data) {
         return get<arraySize, byteOffset>(data.data());
+    }
+
+    /**
+     * @brief Set the bitfield value within the data array.
+     * 
+     * @tparam arraySize Size of the data array.
+     * @tparam byteOffset=0 Offset in data to write to. In Bytes.
+     * @param data Data array to write to. Must be at least arraySize long.
+     * @param value Value to write to the bitfield value.
+     */
+    template <size_t arraySize, size_t byteOffset=0>
+    static void set(uint8_t* data, const T& value) {
+        static_assert(position + size + (8*byteOffset) <= 8*arraySize, "Bitfield getter out of boundries");
+        static_assert(sizeof(T)*8 >= size, "Bitfield size too big for chosen data type");
+
+        auto ref = reinterpret_cast<const uint8_t*>(&value);
+        auto startBit = position + (8*byteOffset);
+        auto endBit = startBit + size;
+        for (auto srcBit = 0; srcBit < size; ++srcBit) {
+            auto desBit = endBit - srcBit - 1;
+            auto desByte = desBit / 8;
+            desBit %= 8;
+            copyBit(data[desByte], desBit, ref[srcBit/8], srcBit%8);
+        }
+    }
+
+    /**
+     * @brief Set the bitfield value within the data array.
+     * 
+     * @tparam arraySize Size of the data array.
+     * @tparam byteOffset=0 Offset in data to write to. In Bytes.
+     * @param data Data array to write to. Must be at least arraySize long.
+     * @param value Value to write to the bitfield value.
+     */
+    template <size_t arraySize, size_t byteOffset=0>
+    static void set(std::array<uint8_t, arraySize>& data, const T& value) {
+        set<arraySize, byteOffset>(data.data(), value);
     }
 };
 
@@ -215,6 +318,9 @@ int main(int argc, char* argv[]) {
 
     std::cout << "uint16 = " << UINT16::get(a1) << std::endl;
     std::cout << "uint16 = " << UINT16::get<sizeof(a2)>(a2) << std::endl;
+
+    UINT16::set(a1, 481);
+    std::cout << "uint16 after change to 481 = " << UINT16::get(a1) << std::endl;
 
     using Data = Bitfield<int, 0, 4, BitOrder::MSBAtZero>;
 
